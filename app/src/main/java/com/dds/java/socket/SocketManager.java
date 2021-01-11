@@ -28,7 +28,7 @@ import javax.net.ssl.TrustManager;
 public class SocketManager implements IEvent {
     private final static String TAG = "dds_SocketManager";
     private DWebSocket webSocket;
-    private int userState;
+    private int userState; //login 1, logout 0
     private String myId;
 
 

@@ -531,7 +531,7 @@ public class CallSession implements NetworkMonitor.NetworkObserver {
 
     }
 
-    public PeerConnectionFactory createConnectionFactory() {
+    private PeerConnectionFactory createConnectionFactory() {
         PeerConnectionFactory.initialize(PeerConnectionFactory
                 .InitializationOptions
                 .builder(mContext)

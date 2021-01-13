@@ -52,8 +52,8 @@ public class AsyncPlayer {
         }
     }
 
-    private final class Thread extends java.lang.Thread {
-        Thread() {
+    private final class MyThread extends java.lang.Thread {
+        MyThread() {
             super("AsyncPlayer-" + mTag);
         }
 
@@ -95,7 +95,7 @@ public class AsyncPlayer {
     }
 
     private String mTag;
-    private Thread mThread;
+    private MyThread mThread;
     private MediaPlayer mPlayer;
     private PowerManager.WakeLock mWakeLock;
 
@@ -139,7 +139,7 @@ public class AsyncPlayer {
         mCmdQueue.add(cmd);
         if (mThread == null) {
             acquireWakeLock();
-            mThread = new Thread();
+            mThread = new MyThread();
             mThread.start();
         }
     }

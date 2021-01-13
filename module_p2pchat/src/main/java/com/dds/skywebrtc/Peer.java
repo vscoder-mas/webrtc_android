@@ -41,6 +41,7 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
     public PeerConnection createPeerConnection() {
         // 管道连接抽象类实现方法
         PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(mSession.avEngineKit.getIceServers());
+        // 3. 非常重要!!! 这里配置PeerConnection.Observer回调
         return mSession._factory.createPeerConnection(rtcConfig, this);
     }
 
@@ -52,6 +53,7 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
     // 创建offer
     public void createOffer() {
         if (pc == null) return;
+        //1. 非常重要!!! PeerConnection.createOffer，这里添加SdpObserver回调
         pc.createOffer(this, offerOrAnswerConstraint());
     }
 
@@ -98,7 +100,7 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
         }
     }
 
-    //------------------------------Observer-------------------------------------
+    //------------------------------PeerConnection.Observer-------------------------------------
     @Override
     public void onSignalingChange(PeerConnection.SignalingState signalingState) {
         Log.i(TAG, "onSignalingChange: " + signalingState);
@@ -188,6 +190,7 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
         String sdpString = origSdp.description;
         final SessionDescription sdp = new SessionDescription(origSdp.type, sdpString);
         localSdp = sdp;
+        //2. 非常重要!!! 这里PeerConnection设置SdpObserver，监听OnSetSuccess回调
         mSession.executor.execute(() -> pc.setLocalDescription(this, sdp));
     }
 

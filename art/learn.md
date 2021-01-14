@@ -1,49 +1,51 @@
-#### webrtc android 学习笔记
-
-
+### webrtc android 学习笔记
+##### OutCall 主动呼叫时序图
 @startuml 
 participant "CallSingleActivity" 
-participant "VideoFragment"
 participant "SkyEngineKit" 
 participant "CallSession" 
-participant "Peer" 
+participant "VoipEvent" 
 participant "SocketManager" 
 participant "DWebSocket" 
-participant "VoipEvent" 
+participant "Peer" 
+participant "VideoFragment"
 
-
-<!-- 
-rnote over "ConnectHelper"
-    init socket 
-endrnote 
-activate "ConnectHelper" 
-"ConnectHelper" -> "ConnectHelper": 1. init data\n2. init socket\n3. set conn status:connect 
-deactivate "ConnectHelper" 
-"ConnectHelper" -> "SendAckMonitor": add action:CONNECT/HELPER msg 
-"ReceiveThread" -> "SendAckMonitor": 1. receive action:SecureConnect/VerifyClient msg\n2. del msg, action:CONNECT/HELPER 
-"ReceiveThread" -> "VerifyClientProcessor": receive action:SecureConnect/VerifyClient msg 
-"VerifyClientProcessor"-> "VerifyClientProcessor":1. gen ram 16bytes token (local)\n2. md5(server.token):password\n 
-"VerifyClientProcessor"-> "SendThread":send action:SecureConnect/VerifyServer msg(pwd,token)
-"ReceiveThread" -> "SendAckMonitor":1. receive action:SecureConnect/PublicKey msg\n2. del msg, action:SecureConnect/VerifyServer 
-"ReceiveThread" -> "PublicKeyProcessor":receive action:SecureConnect/PublicKey msg
-"PublicKeyProcessor" -> "PublicKeyProcessor":1. get password & equals(md5(local token))\n2. get publickey\n3. gen ram 16bytes key(blowfish key)\n4. RSA(pubkey).encrpyt(ram) 
-"PublicKeyProcessor" -> "SendThread":1. send action:SecureConnect/Hello msg\n2. send action:regist msg(ip, mainctl) 
-"PublicKeyProcessor"-> "ConnectHelper": set conn status:login
-"ReceiveThread" -> "ReceiveThread": set conn status: from login to online  
-"ReceiveThread" -> "SendAckMonitor": 1. receive action:return msg\n2. del msg, action:regist by id(timestamp)\n3. socket conn complete ! 
-rnote over "ConnectHelper", "CommandProcessor" 
-socket conn complete 
-endrnote 
-"HeartBeatThread" -> "SendThread": send action:heartbeat msg(mainctl, timestamp) 
-"ReceiveThread" -> "SendAckMonitor": 1. receive action:return msg\n2. del msg action:heartbeat by id(timestamp) 
-rnote over "ConnectHelper", "CommandProcessor" 
-negative receive command 
-endrnote 
-"ReceiveThread" -> "CommandProcessor": negative receive action:command msg 
-"CommandProcessor" -> "SendThread": 1. ack send action return msg(id,result) 
-activate "SendAckMonitor" 
-"SendAckMonitor" -> "SendAckMonitor": 1. delay 20s\n2. period 10s\n3. del timeout action:heartbeat task\n4. judge condition:cur - sendtime > 10s 
-deactivate "SendAckMonitor" -->
+CallSingleActivity -> SkyEngineKit: startOutCall
+SkyEngineKit -> CallSession: 1. init CallSession\n 2. createHome
+CallSession -> VoipEvent: new Thread(createRoom)
+VoipEvent -> SocketManager: createRoom
+SocketManager -> DWebSocket: 1. createRoom\n 2. req event:__create
+DWebSocket -> DWebSocket: 1. ack event:__peers\n 2. handlePeers
+DWebSocket -> SocketManager: onPeers //enter room
+SocketManager -> CallSession: onJoinHome
+CallSession -> VoipEvent: 1. isComming=false\n 2. sendInvite
+CallSession -> VideoFragment: didCreateLocalVideoTrack
+VoipEvent -> SocketManager: sendInvite
+SocketManager -> DWebSocket: 1. req event:__invite\n 2. sendInvite
+DWebSocket -> DWebSocket: 1. ack event:__new_peer\n 2. handleNewPeer
+DWebSocket -> SocketManager: onNewPeer
+SocketManager -> CallSession: newPeer
+CallSession -> Peer: 1. new Peer\n pc.addStream(localStream)
+CallSession -> VideoFragment: didChangeState(connected)
+DWebSocket -> DWebSocket: 1. ack event:__offer\n 2. handleOffer
+DWebSocket -> SocketManager: onOffer
+SocketManager -> CallSession: onReceiverOffer(userid, sdp)
+CallSession -> Peer: 1. setOffer(false)\n 2. pc.setRemoteDescription\n 3. createAnswer
+Peer -> Peer: 1. OnCreateSuccess callback\n 2. new Thread(pc.setLocalDescription)\n 3. onSetSuccess callback
+Peer -> VoipEvent: sendAnswer
+VoipEvent -> SocketManager: sendAnswer
+SocketManager -> DWebSocket: 1. req event:__answer\n 2. sendAnswer
+Peer -> Peer: 1. PeerConnection.Observer interface\n 2. onIceCandidate callback
+Peer -> VoipEvent: sendIceCandidate
+VoipEvent -> SocketManager: sendIceCandidate
+SocketManager -> DWebSocket: 1. sendIceCandidate\n 2. req event:__ice_candidate
+DWebSocket -> DWebSocket: 1. ack event:__ice_candidate\n 2. handleIceCandidate
+DWebSocket -> SocketManager: onIceCandidate
+SocketManager -> CallSession: onRemoteIceCandidate
+CallSession -> Peer: 1. new IceCandidate\n 2. addRemoteIceCandidate\n 3. pc.addIceCandidate
+Peer -> Peer: PeerConnection.Observeron callback AddStream
+Peer-> CallSession: fragment callback
+CallSession -> VideoFragment: didReceiveRemoteVideoTrack
 
 @enduml
 

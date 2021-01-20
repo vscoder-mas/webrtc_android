@@ -29,7 +29,7 @@
                 android:id="@+id/et_signal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="server地址(如ws://192.168.1.123:3000)" />
+                android:hint="server地址(如ws://121.196.157.174:7080)" />
 
 
             <EditText

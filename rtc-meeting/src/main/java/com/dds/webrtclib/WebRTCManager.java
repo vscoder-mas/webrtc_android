@@ -6,9 +6,9 @@ import android.os.Looper;
 
 import com.dds.webrtclib.bean.MediaType;
 import com.dds.webrtclib.bean.MyIceServer;
-import com.dds.webrtclib.ws.IConnectEvent;
-import com.dds.webrtclib.ws.ISignalingEvents;
-import com.dds.webrtclib.ws.IWebSocket;
+import com.dds.webrtclib.ws.IConnectEventListener;
+import com.dds.webrtclib.ws.ISignalingEventsListener;
+import com.dds.webrtclib.ws.IWebSocketListener;
 import com.dds.webrtclib.ws.JavaWebSocket;
 
 import org.webrtc.EglBase;
@@ -22,12 +22,12 @@ import java.util.List;
  * Created by dds on 2019/4/5.
  * android_shuai@163.com
  */
-public class WebRTCManager implements ISignalingEvents {
-    private final static String TAG = "sing_WebRTCManager";
+public class WebRTCManager implements ISignalingEventsListener {
+    private final static String TAG = "WebRTCManager";
     private String _wss;
     private MyIceServer[] _iceServers;
 
-    private IWebSocket _webSocket;
+    private IWebSocketListener javaWebSocket;
     private PeerConnectionHelper _peerHelper;
 
     private String _roomId;
@@ -35,7 +35,7 @@ public class WebRTCManager implements ISignalingEvents {
     private boolean _videoEnable;
 
 
-    private IConnectEvent _connectEvent;
+    private IConnectEventListener connectEventListener;
     private Handler handler = new Handler(Looper.getMainLooper());
 
     public static WebRTCManager getInstance() {
@@ -47,26 +47,25 @@ public class WebRTCManager implements ISignalingEvents {
     }
 
     // init address
-    public void init(String wss, MyIceServer[] iceServers, IConnectEvent event) {
+    public void init(String wss, MyIceServer[] iceServers, IConnectEventListener listener) {
         this._wss = wss;
         this._iceServers = iceServers;
-        _connectEvent = event;
-
+        connectEventListener = listener;
     }
 
     // connect
     public void connect(int mediaType, String roomId) {
-        if (_webSocket == null) {
+        if (javaWebSocket == null) {
             _mediaType = mediaType;
             _videoEnable = mediaType != MediaType.TYPE_AUDIO;
             _roomId = roomId;
-            _webSocket = new JavaWebSocket(this);
-            _webSocket.connect(_wss);
-            _peerHelper = new PeerConnectionHelper(_webSocket, _iceServers);
+            javaWebSocket = new JavaWebSocket(this);
+            javaWebSocket.connect(_wss);
+            _peerHelper = new PeerConnectionHelper(javaWebSocket, _iceServers);
         } else {
             // 正在通话中
-            _webSocket.close();
-            _webSocket = null;
+            javaWebSocket.close();
+            javaWebSocket = null;
             _peerHelper = null;
         }
 
@@ -84,8 +83,8 @@ public class WebRTCManager implements ISignalingEvents {
         if (_peerHelper != null) {
             _peerHelper.initContext(context, eglBase);
         }
-        if (_webSocket != null) {
-            _webSocket.joinRoom(_roomId);
+        if (javaWebSocket != null) {
+            javaWebSocket.joinRoom(_roomId);
         }
 
     }
@@ -110,7 +109,7 @@ public class WebRTCManager implements ISignalingEvents {
 
     public void exitRoom() {
         if (_peerHelper != null) {
-            _webSocket = null;
+            javaWebSocket = null;
             _peerHelper.exitRoom();
         }
     }
@@ -119,19 +118,17 @@ public class WebRTCManager implements ISignalingEvents {
     @Override
     public void onWebSocketOpen() {
         handler.post(() -> {
-            if (_connectEvent != null) {
-                _connectEvent.onSuccess();
+            if (connectEventListener != null) {
+                connectEventListener.onSuccess();
             }
-
         });
-
     }
 
     @Override
     public void onWebSocketOpenFailed(String msg) {
         handler.post(() -> {
-            if (_webSocket != null && !_webSocket.isOpen()) {
-                _connectEvent.onFailed(msg);
+            if (javaWebSocket != null && !javaWebSocket.isOpen()) {
+                connectEventListener.onFailed(msg);
             } else {
                 if (_peerHelper != null) {
                     _peerHelper.exitRoom();

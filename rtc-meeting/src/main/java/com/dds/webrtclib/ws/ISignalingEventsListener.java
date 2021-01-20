@@ -9,8 +9,7 @@ import java.util.List;
  * Created by dds on 2019/1/3.
  * android_shuai@163.com
  */
-public interface ISignalingEvents {
-
+public interface ISignalingEventsListener {
     // webSocket连接成功
     void onWebSocketOpen();
 

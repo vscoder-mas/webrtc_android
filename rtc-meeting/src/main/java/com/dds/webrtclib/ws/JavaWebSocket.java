@@ -33,18 +33,15 @@ import javax.net.ssl.X509TrustManager;
  * Created by dds on 2019/1/3.
  * android_shuai@163.com
  */
-public class JavaWebSocket implements IWebSocket {
-
-    private final static String TAG = "dds_JavaWebSocket";
-
+public class JavaWebSocket implements IWebSocketListener {
+    private final static String TAG = JavaWebSocket.class.getSimpleName();
     private WebSocketClient mWebSocketClient;
-
-    private ISignalingEvents events;
+    private ISignalingEventsListener signalingEventsListener;
 
     private boolean isOpen; //是否连接成功过
 
-    public JavaWebSocket(ISignalingEvents events) {
-        this.events = events;
+    public JavaWebSocket(ISignalingEventsListener listener) {
+        this.signalingEventsListener = listener;
     }
 
     @Override
@@ -61,7 +58,7 @@ public class JavaWebSocket implements IWebSocket {
                 @Override
                 public void onOpen(ServerHandshake handshake) {
                     isOpen = true;
-                    events.onWebSocketOpen();
+                    signalingEventsListener.onWebSocketOpen();
                 }
 
                 @Override
@@ -74,16 +71,16 @@ public class JavaWebSocket implements IWebSocket {
                 @Override
                 public void onClose(int code, String reason, boolean remote) {
                     Log.e(TAG, "onClose:" + reason);
-                    if (events != null) {
-                        events.onWebSocketOpenFailed(reason);
+                    if (signalingEventsListener != null) {
+                        signalingEventsListener.onWebSocketOpenFailed(reason);
                     }
                 }
 
                 @Override
                 public void onError(Exception ex) {
                     Log.e(TAG, ex.toString());
-                    if (events != null) {
-                        events.onWebSocketOpenFailed(ex.toString());
+                    if (signalingEventsListener != null) {
+                        signalingEventsListener.onWebSocketOpenFailed(ex.toString());
                     }
                 }
             };
@@ -201,6 +198,7 @@ public class JavaWebSocket implements IWebSocket {
     public void handleMessage(String message) {
         Map map = JSON.parseObject(message, Map.class);
         String eventName = (String) map.get("eventName");
+        Log.d(TAG, "handleMessage: eventName:" + eventName);
         if (eventName == null) return;
         if (eventName.equals("_peers")) {
             handleJoinToRoom(map);
@@ -231,7 +229,7 @@ public class JavaWebSocket implements IWebSocket {
             String js = JSONObject.toJSONString(arr, SerializerFeature.WriteClassName);
             ArrayList<String> connections = (ArrayList<String>) JSONObject.parseArray(js, String.class);
             String myId = (String) data.get("you");
-            events.onJoinToRoom(connections, myId);
+            signalingEventsListener.onJoinToRoom(connections, myId);
         }
 
     }
@@ -242,7 +240,7 @@ public class JavaWebSocket implements IWebSocket {
         String socketId;
         if (data != null) {
             socketId = (String) data.get("socketId");
-            events.onRemoteJoinToRoom(socketId);
+            signalingEventsListener.onRemoteJoinToRoom(socketId);
         }
 
     }
@@ -258,7 +256,7 @@ public class JavaWebSocket implements IWebSocket {
             int label = (int) Double.parseDouble(String.valueOf(data.get("label")));
             String candidate = (String) data.get("candidate");
             IceCandidate iceCandidate = new IceCandidate(sdpMid, label, candidate);
-            events.onRemoteIceCandidate(socketId, iceCandidate);
+            signalingEventsListener.onRemoteIceCandidate(socketId, iceCandidate);
         }
 
 
@@ -270,7 +268,7 @@ public class JavaWebSocket implements IWebSocket {
         String socketId;
         if (data != null) {
             socketId = (String) data.get("socketId");
-            events.onRemoteOutRoom(socketId);
+            signalingEventsListener.onRemoteOutRoom(socketId);
         }
 
     }
@@ -283,7 +281,7 @@ public class JavaWebSocket implements IWebSocket {
             sdpDic = (Map) data.get("sdp");
             String socketId = (String) data.get("socketId");
             String sdp = (String) sdpDic.get("sdp");
-            events.onReceiveOffer(socketId, sdp);
+            signalingEventsListener.onReceiveOffer(socketId, sdp);
         }
 
     }
@@ -296,7 +294,7 @@ public class JavaWebSocket implements IWebSocket {
             sdpDic = (Map) data.get("sdp");
             String socketId = (String) data.get("socketId");
             String sdp = (String) sdpDic.get("sdp");
-            events.onReceiverAnswer(socketId, sdp);
+            signalingEventsListener.onReceiverAnswer(socketId, sdp);
         }
 
     }

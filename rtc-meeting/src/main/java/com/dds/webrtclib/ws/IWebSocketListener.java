@@ -6,7 +6,7 @@ import org.webrtc.IceCandidate;
  * Created by dds on 2019/1/3.
  * android_shuai@163.com
  */
-public interface IWebSocket {
+public interface IWebSocketListener {
 
 
     void connect(String wss);

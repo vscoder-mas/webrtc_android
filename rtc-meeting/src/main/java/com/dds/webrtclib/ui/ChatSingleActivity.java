@@ -5,10 +5,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -28,6 +24,10 @@ import org.webrtc.MediaStream;
 import org.webrtc.RendererCommon;
 import org.webrtc.SurfaceViewRenderer;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
 /**
  * 单聊界面
  * 1. 一对一视频通话
@@ -40,10 +40,8 @@ public class ChatSingleActivity extends AppCompatActivity {
     private ProxyVideoSink remoteRender;
 
     private WebRTCManager manager;
-
     private boolean videoEnable;
     private boolean isSwappedFeeds;
-
     private EglBase rootEglBase;
 
     public static void openActivity(Activity activity, boolean videoEnable) {
@@ -80,7 +78,6 @@ public class ChatSingleActivity extends AppCompatActivity {
         if (videoEnable) {
             local_view = findViewById(R.id.local_view_render);
             remote_view = findViewById(R.id.remote_view_render);
-
             // 本地图像初始化
             local_view.init(rootEglBase.getEglBaseContext(), null);
             local_view.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
@@ -93,12 +90,10 @@ public class ChatSingleActivity extends AppCompatActivity {
             remote_view.setMirror(true);
             remoteRender = new ProxyVideoSink();
             setSwappedFeeds(true);
-
             local_view.setOnClickListener(v -> setSwappedFeeds(!isSwappedFeeds));
         }
 
         startCall();
-
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -198,12 +193,10 @@ public class ChatSingleActivity extends AppCompatActivity {
 
     }
 
-
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         return keyCode == KeyEvent.KEYCODE_BACK || super.onKeyDown(keyCode, event);
     }
-
 
     // 切换摄像头
     public void switchCamera() {
@@ -257,7 +250,7 @@ public class ChatSingleActivity extends AppCompatActivity {
 
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         for (int i = 0; i < permissions.length; i++) {
             Log.i(PeerConnectionHelper.TAG, "[Permission] " + permissions[i] + " is " + (grantResults[i] == PackageManager.PERMISSION_GRANTED ? "granted" : "denied"));
             if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {

@@ -5,11 +5,9 @@ import android.content.Context;
 import android.media.AudioManager;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
-
 import com.dds.webrtclib.bean.MediaType;
 import com.dds.webrtclib.bean.MyIceServer;
-import com.dds.webrtclib.ws.IWebSocket;
+import com.dds.webrtclib.ws.IWebSocketListener;
 
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
@@ -49,11 +47,10 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import androidx.annotation.Nullable;
 
 public class PeerConnectionHelper {
-
-    public final static String TAG = "dds_webRtcHelper";
-
+    public final static String TAG = PeerConnectionHelper.class.getSimpleName();
     public static final int VIDEO_RESOLUTION_WIDTH = 320;
     public static final int VIDEO_RESOLUTION_HEIGHT = 240;
     public static final int FPS = 10;
@@ -69,39 +66,32 @@ public class PeerConnectionHelper {
     public VideoSource videoSource;
     public AudioSource audioSource;
 
-    public ArrayList<String> _connectionIdArray;
-    public Map<String, Peer> _connectionPeerDic;
+    public ArrayList<String> lstConnIds;
+    public Map<String, Peer> mapConnPeers;
 
     public String _myId;
     public IViewCallback viewCallback;
 
-    public ArrayList<PeerConnection.IceServer> ICEServers;
+    public ArrayList<PeerConnection.IceServer> lstIceServer;
     public boolean videoEnable;
     public int _mediaType;
-
     private AudioManager mAudioManager;
 
-
-
-    enum Role {Caller, Receiver,}
+    enum Role {Caller, Receiver}
 
     private Role _role;
-
-    private IWebSocket _webSocket;
-
+    private IWebSocketListener _webSocket;
     private Context _context;
-
     private EglBase _rootEglBase;
 
     @Nullable
     private SurfaceTextureHelper surfaceTextureHelper;
-
     private final ExecutorService executor;
 
-    public PeerConnectionHelper(IWebSocket webSocket, MyIceServer[] iceServers) {
-        this._connectionPeerDic = new HashMap<>();
-        this._connectionIdArray = new ArrayList<>();
-        this.ICEServers = new ArrayList<>();
+    public PeerConnectionHelper(IWebSocketListener webSocket, MyIceServer[] iceServers) {
+        this.mapConnPeers = new HashMap<>();
+        this.lstConnIds = new ArrayList<>();
+        this.lstIceServer = new ArrayList<>();
 
         _webSocket = webSocket;
         executor = Executors.newSingleThreadExecutor();
@@ -112,7 +102,7 @@ public class PeerConnectionHelper {
                         .setUsername(myIceServer.username)
                         .setPassword(myIceServer.password)
                         .createIceServer();
-                ICEServers.add(iceServer);
+                lstIceServer.add(iceServer);
             }
         }
     }
@@ -134,7 +124,7 @@ public class PeerConnectionHelper {
         videoEnable = isVideoEnable;
         _mediaType = mediaType;
         executor.execute(() -> {
-            _connectionIdArray.addAll(connections);
+            lstConnIds.addAll(connections);
             _myId = myId;
             if (_factory == null) {
                 _factory = createConnectionFactory();
@@ -158,8 +148,8 @@ public class PeerConnectionHelper {
             try {
                 Peer mPeer = new Peer(socketId);
                 mPeer.pc.addStream(_localStream);
-                _connectionIdArray.add(socketId);
-                _connectionPeerDic.put(socketId, mPeer);
+                lstConnIds.add(socketId);
+                mapConnPeers.put(socketId, mPeer);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -169,7 +159,7 @@ public class PeerConnectionHelper {
 
     public void onRemoteIceCandidate(String socketId, IceCandidate iceCandidate) {
         executor.execute(() -> {
-            Peer peer = _connectionPeerDic.get(socketId);
+            Peer peer = mapConnPeers.get(socketId);
             if (peer != null) {
                 peer.pc.addIceCandidate(iceCandidate);
             }
@@ -191,7 +181,7 @@ public class PeerConnectionHelper {
     public void onReceiveOffer(String socketId, String description) {
         executor.execute(() -> {
             _role = Role.Receiver;
-            Peer mPeer = _connectionPeerDic.get(socketId);
+            Peer mPeer = mapConnPeers.get(socketId);
             String sessionDescription = description;
             if (videoEnable) {
                 sessionDescription = preferCodec(description, VIDEO_CODEC_H264, false);
@@ -208,7 +198,7 @@ public class PeerConnectionHelper {
 
     public void onReceiverAnswer(String socketId, String sdp) {
         executor.execute(() -> {
-            Peer mPeer = _connectionPeerDic.get(socketId);
+            Peer mPeer = mapConnPeers.get(socketId);
             SessionDescription sessionDescription = new SessionDescription(SessionDescription.Type.ANSWER, sdp);
             if (mPeer != null) {
                 mPeer.pc.setRemoteDescription(mPeer, sessionDescription);
@@ -273,16 +263,16 @@ public class PeerConnectionHelper {
 
     // 创建所有连接
     private void createPeerConnections() {
-        for (Object str : _connectionIdArray) {
+        for (Object str : lstConnIds) {
             Peer peer = new Peer((String) str);
-            _connectionPeerDic.put((String) str, peer);
+            mapConnPeers.put((String) str, peer);
         }
     }
 
     // 为所有连接添加流
     private void addStreams() {
         Log.v(TAG, "为所有连接添加流");
-        for (Map.Entry<String, Peer> entry : _connectionPeerDic.entrySet()) {
+        for (Map.Entry<String, Peer> entry : mapConnPeers.entrySet()) {
             if (_localStream == null) {
                 createLocalStream();
             }
@@ -297,7 +287,7 @@ public class PeerConnectionHelper {
 
     // 为所有连接创建offer
     private void createOffers() {
-        for (Map.Entry<String, Peer> entry : _connectionPeerDic.entrySet()) {
+        for (Map.Entry<String, Peer> entry : mapConnPeers.entrySet()) {
             _role = Role.Caller;
             Peer mPeer = entry.getValue();
             mPeer.pc.createOffer(mPeer, offerOrAnswerConstraint());
@@ -307,12 +297,12 @@ public class PeerConnectionHelper {
 
     // 关闭通道流
     private void closePeerConnection(String connectionId) {
-        Peer mPeer = _connectionPeerDic.get(connectionId);
+        Peer mPeer = mapConnPeers.get(connectionId);
         if (mPeer != null) {
             mPeer.pc.close();
         }
-        _connectionPeerDic.remove(connectionId);
-        _connectionIdArray.remove(connectionId);
+        mapConnPeers.remove(connectionId);
+        lstConnIds.remove(connectionId);
         if (viewCallback != null) {
             viewCallback.onCloseWithId(connectionId);
         }
@@ -354,12 +344,12 @@ public class PeerConnectionHelper {
         }
         executor.execute(() -> {
             ArrayList myCopy;
-            myCopy = (ArrayList) _connectionIdArray.clone();
+            myCopy = (ArrayList) lstConnIds.clone();
             for (Object Id : myCopy) {
                 closePeerConnection((String) Id);
             }
-            if (_connectionIdArray != null) {
-                _connectionIdArray.clear();
+            if (lstConnIds != null) {
+                lstConnIds.clear();
             }
             if (audioSource != null) {
                 audioSource.dispose();
@@ -624,7 +614,7 @@ public class PeerConnectionHelper {
                 _factory = createConnectionFactory();
             }
             // 管道连接抽象类实现方法
-            PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(ICEServers);
+            PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(lstIceServer);
             return _factory.createPeerConnection(rtcConfig, this);
         }
 

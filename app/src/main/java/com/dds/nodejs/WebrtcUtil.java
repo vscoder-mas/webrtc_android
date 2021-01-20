@@ -8,7 +8,7 @@ import com.dds.webrtclib.bean.MediaType;
 import com.dds.webrtclib.bean.MyIceServer;
 import com.dds.webrtclib.ui.ChatRoomActivity;
 import com.dds.webrtclib.ui.ChatSingleActivity;
-import com.dds.webrtclib.ws.IConnectEvent;
+import com.dds.webrtclib.ws.IConnectEventListener;
 
 /**
  * Created by dds on 2019/1/7.
@@ -44,7 +44,7 @@ public class WebrtcUtil {
         if (TextUtils.isEmpty(wss)) {
             wss = WSS;
         }
-        WebRTCManager.getInstance().init(wss, iceServers, new IConnectEvent() {
+        WebRTCManager.getInstance().init(wss, iceServers, new IConnectEventListener() {
             @Override
             public void onSuccess() {
                 ChatSingleActivity.openActivity(activity, videoEnable);
@@ -63,7 +63,7 @@ public class WebrtcUtil {
         if (TextUtils.isEmpty(wss)) {
             wss = WSS;
         }
-        WebRTCManager.getInstance().init(wss, iceServers, new IConnectEvent() {
+        WebRTCManager.getInstance().init(wss, iceServers, new IConnectEventListener() {
             @Override
             public void onSuccess() {
                 ChatRoomActivity.openActivity(activity);

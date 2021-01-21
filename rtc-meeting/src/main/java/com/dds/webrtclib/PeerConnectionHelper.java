@@ -47,13 +47,11 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import androidx.annotation.Nullable;
-
 public class PeerConnectionHelper {
     public final static String TAG = PeerConnectionHelper.class.getSimpleName();
     public static final int VIDEO_RESOLUTION_WIDTH = 320;
     public static final int VIDEO_RESOLUTION_HEIGHT = 240;
-    public static final int FPS = 10;
+    public static final int FPS = 30;
     public static final String VIDEO_CODEC_H264 = "H264";
     public static final String VIDEO_TRACK_ID = "ARDAMSv0";
     public static final String AUDIO_TRACK_ID = "ARDAMSa0";
@@ -66,7 +64,9 @@ public class PeerConnectionHelper {
     public VideoSource videoSource;
     public AudioSource audioSource;
 
-    public ArrayList<String> lstConnIds;
+    //保存所有房间内，除自己外的sessionId
+    public ArrayList<String> lstSessionIds;
+    //保存sessionId，对应的Peer连接对象
     public Map<String, Peer> mapConnPeers;
 
     public String _myId;
@@ -80,20 +80,19 @@ public class PeerConnectionHelper {
     enum Role {Caller, Receiver}
 
     private Role _role;
-    private IWebSocketListener _webSocket;
+    private IWebSocketListener javaWebSocket;
     private Context _context;
     private EglBase _rootEglBase;
 
-    @Nullable
     private SurfaceTextureHelper surfaceTextureHelper;
     private final ExecutorService executor;
 
     public PeerConnectionHelper(IWebSocketListener webSocket, MyIceServer[] iceServers) {
         this.mapConnPeers = new HashMap<>();
-        this.lstConnIds = new ArrayList<>();
+        this.lstSessionIds = new ArrayList<>();
         this.lstIceServer = new ArrayList<>();
 
-        _webSocket = webSocket;
+        javaWebSocket = webSocket;
         executor = Executors.newSingleThreadExecutor();
         if (iceServers != null) {
             for (MyIceServer myIceServer : iceServers) {
@@ -124,7 +123,7 @@ public class PeerConnectionHelper {
         videoEnable = isVideoEnable;
         _mediaType = mediaType;
         executor.execute(() -> {
-            lstConnIds.addAll(connections);
+            lstSessionIds.addAll(connections);
             _myId = myId;
             if (_factory == null) {
                 _factory = createConnectionFactory();
@@ -137,7 +136,6 @@ public class PeerConnectionHelper {
             addStreams();
             createOffers();
         });
-
     }
 
     public void onRemoteJoinToRoom(String socketId) {
@@ -148,7 +146,7 @@ public class PeerConnectionHelper {
             try {
                 Peer mPeer = new Peer(socketId);
                 mPeer.pc.addStream(_localStream);
-                lstConnIds.add(socketId);
+                lstSessionIds.add(socketId);
                 mapConnPeers.put(socketId, mPeer);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -180,6 +178,7 @@ public class PeerConnectionHelper {
 
     public void onReceiveOffer(String socketId, String description) {
         executor.execute(() -> {
+            Log.d(TAG, String.format("- onReceiveOffer: socketId:%s, sdp:%s", socketId, description));
             _role = Role.Receiver;
             Peer mPeer = mapConnPeers.get(socketId);
             String sessionDescription = description;
@@ -188,7 +187,6 @@ public class PeerConnectionHelper {
             }
 
             SessionDescription sdp = new SessionDescription(SessionDescription.Type.OFFER, sessionDescription);
-
             if (mPeer != null) {
                 mPeer.pc.setRemoteDescription(mPeer, sdp);
             }
@@ -204,7 +202,6 @@ public class PeerConnectionHelper {
                 mPeer.pc.setRemoteDescription(mPeer, sessionDescription);
             }
         });
-
     }
 
     private PeerConnectionFactory createConnectionFactory() {
@@ -254,24 +251,24 @@ public class PeerConnectionHelper {
             _localStream.addTrack(_localVideoTrack);
         }
 
-
         if (viewCallback != null) {
             viewCallback.onSetLocalStream(_localStream, _myId);
         }
-
     }
 
     // 创建所有连接
     private void createPeerConnections() {
-        for (Object str : lstConnIds) {
-            Peer peer = new Peer((String) str);
-            mapConnPeers.put((String) str, peer);
+        Log.d(TAG, String.format("- createPeerConnections: lstSessionIds.size:%d", lstSessionIds.size()));
+        for (String sessionId : lstSessionIds) {
+            Peer peer = new Peer(sessionId);
+            mapConnPeers.put(sessionId, peer);
         }
     }
 
     // 为所有连接添加流
     private void addStreams() {
-        Log.v(TAG, "为所有连接添加流");
+        Log.d(TAG, "- 为所有连接添加流");
+        Log.d(TAG, String.format("- addStreams: mapConnPeers.size:%d", mapConnPeers.size()));
         for (Map.Entry<String, Peer> entry : mapConnPeers.entrySet()) {
             if (_localStream == null) {
                 createLocalStream();
@@ -287,26 +284,25 @@ public class PeerConnectionHelper {
 
     // 为所有连接创建offer
     private void createOffers() {
+        Log.d(TAG, String.format("- createOffers: mapConnPeers.size:%d", mapConnPeers.size()));
         for (Map.Entry<String, Peer> entry : mapConnPeers.entrySet()) {
             _role = Role.Caller;
             Peer mPeer = entry.getValue();
             mPeer.pc.createOffer(mPeer, offerOrAnswerConstraint());
         }
-
     }
 
     // 关闭通道流
-    private void closePeerConnection(String connectionId) {
-        Peer mPeer = mapConnPeers.get(connectionId);
+    private void closePeerConnection(String socketId) {
+        Peer mPeer = mapConnPeers.get(socketId);
         if (mPeer != null) {
             mPeer.pc.close();
         }
-        mapConnPeers.remove(connectionId);
-        lstConnIds.remove(connectionId);
+        mapConnPeers.remove(socketId);
+        lstSessionIds.remove(socketId);
         if (viewCallback != null) {
-            viewCallback.onCloseWithId(connectionId);
+            viewCallback.onCloseWithId(socketId);
         }
-
     }
 
 
@@ -320,7 +316,6 @@ public class PeerConnectionHelper {
         } else {
             Log.d(TAG, "Will not switch camera, video caputurer is not a camera");
         }
-
     }
 
     // 设置自己静音
@@ -334,7 +329,6 @@ public class PeerConnectionHelper {
         if (mAudioManager != null) {
             mAudioManager.setSpeakerphoneOn(enable);
         }
-
     }
 
     // 退出房间
@@ -344,12 +338,12 @@ public class PeerConnectionHelper {
         }
         executor.execute(() -> {
             ArrayList myCopy;
-            myCopy = (ArrayList) lstConnIds.clone();
+            myCopy = (ArrayList) lstSessionIds.clone();
             for (Object Id : myCopy) {
                 closePeerConnection((String) Id);
             }
-            if (lstConnIds != null) {
-                lstConnIds.clear();
+            if (lstSessionIds != null) {
+                lstSessionIds.clear();
             }
             if (audioSource != null) {
                 audioSource.dispose();
@@ -382,15 +376,11 @@ public class PeerConnectionHelper {
                 _factory = null;
             }
 
-            if (_webSocket != null) {
-                _webSocket.close();
-                _webSocket = null;
+            if (javaWebSocket != null) {
+                javaWebSocket.close();
+                javaWebSocket = null;
             }
-
-
         });
-
-
     }
 
 
@@ -473,7 +463,6 @@ public class PeerConnectionHelper {
         public Peer(String socketId) {
             this.pc = createPeerConnection();
             this.socketId = socketId;
-
         }
 
 
@@ -509,7 +498,7 @@ public class PeerConnectionHelper {
         @Override
         public void onIceCandidate(IceCandidate iceCandidate) {
             // 发送IceCandidate
-            _webSocket.sendIceCandidate(socketId, iceCandidate);
+            javaWebSocket.sendIceCandidate(socketId, iceCandidate);
         }
 
         @Override
@@ -556,45 +545,37 @@ public class PeerConnectionHelper {
 
         @Override
         public void onCreateSuccess(SessionDescription origSdp) {
-            Log.v(TAG, "sdp创建成功       " + origSdp.type);
+            Log.d(TAG, "onCreateSuccess: sdp.type:" + origSdp.type);
             //设置本地的SDP
-
             String sdpDescription = origSdp.description;
             if (videoEnable) {
                 sdpDescription = preferCodec(sdpDescription, VIDEO_CODEC_H264, false);
             }
 
             final SessionDescription sdp = new SessionDescription(origSdp.type, sdpDescription);
-
-
             pc.setLocalDescription(Peer.this, sdp);
         }
 
         @Override
         public void onSetSuccess() {
-            Log.v(TAG, "sdp连接成功        " + pc.signalingState().toString());
-
+            Log.d(TAG, "- onSetSuccess: pc.signalingState:" + pc.signalingState().toString());
             if (pc.signalingState() == PeerConnection.SignalingState.HAVE_REMOTE_OFFER) {
                 pc.createAnswer(Peer.this, offerOrAnswerConstraint());
             } else if (pc.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
                 //判断连接状态为本地发送offer
                 if (_role == Role.Receiver) {
                     //接收者，发送Answer
-                    _webSocket.sendAnswer(socketId, pc.getLocalDescription().description);
-
+                    javaWebSocket.sendAnswer(socketId, pc.getLocalDescription().description);
                 } else if (_role == Role.Caller) {
                     //发送者,发送自己的offer
-                    _webSocket.sendOffer(socketId, pc.getLocalDescription().description);
+                    javaWebSocket.sendOffer(socketId, pc.getLocalDescription().description);
                 }
-
             } else if (pc.signalingState() == PeerConnection.SignalingState.STABLE) {
                 // Stable 稳定的
                 if (_role == Role.Receiver) {
-                    _webSocket.sendAnswer(socketId, pc.getLocalDescription().description);
-
+                    javaWebSocket.sendAnswer(socketId, pc.getLocalDescription().description);
                 }
             }
-
         }
 
         @Override
@@ -607,7 +588,6 @@ public class PeerConnectionHelper {
 
         }
 
-
         //初始化 RTCPeerConnection 连接管道
         private PeerConnection createPeerConnection() {
             if (_factory == null) {
@@ -617,9 +597,7 @@ public class PeerConnectionHelper {
             PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(lstIceServer);
             return _factory.createPeerConnection(rtcConfig, this);
         }
-
     }
-
 
     // ===================================替换编码方式优先级========================================
     private static String preferCodec(String sdpDescription, String codec, boolean isAudio) {
@@ -664,9 +642,7 @@ public class PeerConnectionHelper {
         return -1;
     }
 
-    private static @Nullable
-    String movePayloadTypesToFront(
-            List<String> preferredPayloadTypes, String mLine) {
+    private static String movePayloadTypesToFront(List<String> preferredPayloadTypes, String mLine) {
         // The format of the media description line should be: m=<media> <port> <proto> <fmt> ...
         final List<String> origLineParts = Arrays.asList(mLine.split(" "));
         if (origLineParts.size() <= 3) {
@@ -686,8 +662,7 @@ public class PeerConnectionHelper {
         return joinString(newLineParts, " ", false /* delimiterAtEnd */);
     }
 
-    private static String joinString(
-            Iterable<? extends CharSequence> s, String delimiter, boolean delimiterAtEnd) {
+    private static String joinString(Iterable<? extends CharSequence> s, String delimiter, boolean delimiterAtEnd) {
         Iterator<? extends CharSequence> iter = s.iterator();
         if (!iter.hasNext()) {
             return "";

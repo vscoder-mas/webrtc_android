@@ -198,7 +198,7 @@ public class JavaWebSocket implements IWebSocketListener {
     public void handleMessage(String message) {
         Map map = JSON.parseObject(message, Map.class);
         String eventName = (String) map.get("eventName");
-        Log.d(TAG, "handleMessage: eventName:" + eventName);
+        Log.d(TAG, "- handleMessage: eventName:" + eventName);
         if (eventName == null) return;
         if (eventName.equals("_peers")) {
             handleJoinToRoom(map);

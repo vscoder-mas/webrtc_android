@@ -3,6 +3,7 @@ package com.dds.webrtclib;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import com.dds.webrtclib.bean.MediaType;
 import com.dds.webrtclib.bean.MyIceServer;
@@ -195,6 +196,7 @@ public class WebRTCManager implements ISignalingEventsListener {
     @Override
     public void onReceiveOffer(String socketId, String sdp) {
         handler.post(() -> {
+            Log.d(TAG, String.format("- onReceiveOffer: socketId:%s, sdp:%s", socketId, sdp));
             if (_peerHelper != null) {
                 _peerHelper.onReceiveOffer(socketId, sdp);
             }
@@ -209,8 +211,5 @@ public class WebRTCManager implements ISignalingEventsListener {
                 _peerHelper.onReceiverAnswer(socketId, sdp);
             }
         });
-
     }
-
-
 }

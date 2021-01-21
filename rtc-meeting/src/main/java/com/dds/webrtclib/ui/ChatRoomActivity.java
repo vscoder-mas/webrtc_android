@@ -12,11 +12,6 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-
 import com.dds.webrtclib.IViewCallback;
 import com.dds.webrtclib.PeerConnectionHelper;
 import com.dds.webrtclib.ProxyVideoSink;
@@ -36,22 +31,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
 /**
  * 群聊界面
  * 支持 9 路同時通信
  */
 public class ChatRoomActivity extends AppCompatActivity implements IViewCallback {
-
     private FrameLayout wr_video_view;
-
     private WebRTCManager manager;
     private Map<String, SurfaceViewRenderer> _videoViews = new HashMap<>();
     private Map<String, ProxyVideoSink> _sinks = new HashMap<>();
     private List<MemberBean> _infos = new ArrayList<>();
     private VideoTrack _localVideoTrack;
-
     private int mScreenWidth;
-
     private EglBase rootEglBase;
 
     public static void openActivity(Activity activity) {
@@ -72,12 +67,8 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         initVar();
         ChatRoomFragment chatRoomFragment = new ChatRoomFragment();
         replaceFragment(chatRoomFragment);
-
-
         startCall();
-
     }
-
 
     private void initView() {
         wr_video_view = findViewById(R.id.wr_video_view);
@@ -129,10 +120,7 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         runOnUiThread(() -> {
             removeView(userId);
         });
-
-
     }
-
 
     private void addView(String id, MediaStream stream) {
         SurfaceViewRenderer renderer = new SurfaceViewRenderer(ChatRoomActivity.this);
@@ -338,7 +326,7 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
 
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         for (int i = 0; i < permissions.length; i++) {
             Log.i(PeerConnectionHelper.TAG, "[Permission] " + permissions[i] + " is " + (grantResults[i] == PackageManager.PERMISSION_GRANTED ? "granted" : "denied"));
             if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {

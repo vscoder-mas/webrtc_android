@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.RelativeLayout;
@@ -33,7 +34,8 @@ import androidx.fragment.app.FragmentManager;
  * 1. 一对一视频通话
  * 2. 一对一语音通话
  */
-public class ChatSingleActivity extends AppCompatActivity {
+public class ChatSingleActivity extends AppCompatActivity implements View.OnClickListener {
+    private final String TAG = ChatSingleActivity.class.getSimpleName();
     private SurfaceViewRenderer local_view;
     private SurfaceViewRenderer remote_view;
     private ProxyVideoSink localRender;
@@ -64,10 +66,6 @@ public class ChatSingleActivity extends AppCompatActivity {
         initListener();
     }
 
-
-    private int previewX, previewY;
-    private int moveX, moveY;
-
     private void initVar() {
         Intent intent = getIntent();
         videoEnable = intent.getBooleanExtra("videoEnable", false);
@@ -90,27 +88,35 @@ public class ChatSingleActivity extends AppCompatActivity {
             remote_view.setMirror(true);
             remoteRender = new ProxyVideoSink();
             setSwappedFeeds(true);
-            local_view.setOnClickListener(v -> setSwappedFeeds(!isSwappedFeeds));
+            local_view.setOnClickListener(this);
         }
 
         startCall();
     }
+
+    private int previewX, previewY;
+    private int lastX, lastY;
+    private boolean isDragged = false; //View是否被移动过
+    private boolean isDrag = false; //判断是拖动还是点击
 
     @SuppressLint("ClickableViewAccessibility")
     private void initListener() {
         if (videoEnable) {
             // 设置小视频可以移动
             local_view.setOnTouchListener((view, motionEvent) -> {
+                boolean res = false;
                 switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         previewX = (int) motionEvent.getX();
                         previewY = (int) motionEvent.getY();
+                        lastX = (int) motionEvent.getRawX();
+                        lastY = (int) motionEvent.getRawY();
+                        isDrag = false;
+                        isDragged = false;
                         break;
                     case MotionEvent.ACTION_MOVE:
                         int x = (int) motionEvent.getX();
                         int y = (int) motionEvent.getY();
-                        moveX = (int) motionEvent.getX();
-                        moveY = (int) motionEvent.getY();
                         RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) local_view.getLayoutParams();
                         lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, 0); // Clears the rule, as there is no removeRule until API 17.
                         lp.addRule(RelativeLayout.ALIGN_PARENT_END, 0);
@@ -121,16 +127,32 @@ public class ChatSingleActivity extends AppCompatActivity {
                         lp.leftMargin = left;
                         lp.topMargin = top;
                         view.setLayoutParams(lp);
+
+                        //手指在屏幕上移动的距离
+                        int dx = (int) motionEvent.getRawX() - lastX;
+                        int dy = (int) motionEvent.getRawY() - lastY;
+                        if (isDragged) {
+                            //如果已经被拖动过，那么无论本次移动的距离是否为零，都判定本次事件为拖动事件
+                            isDrag = true;
+                        } else {
+                            if (dx == 0 && dy == 0) {
+                                //如果移动的距离为零，则认为控件没有被拖动过，灵敏度可以自己控制
+                                isDragged = false;
+                            } else {
+                                isDragged = true;
+                                isDrag = true;
+                            }
+                        }
+
+                        lastX = (int) motionEvent.getRawX();
+                        lastY = (int) motionEvent.getRawY();
                         break;
                     case MotionEvent.ACTION_UP:
-                        if (moveX == 0 && moveY == 0) {
-                            view.performClick();
-                        }
-                        moveX = 0;
-                        moveY = 0;
                         break;
                 }
-                return true;
+
+                //执行onClick回调
+                return isDrag;
             });
         }
     }
@@ -162,7 +184,6 @@ public class ChatSingleActivity extends AppCompatActivity {
                 }
                 if (videoEnable) {
                     stream.videoTracks.get(0).setEnabled(true);
-
                     runOnUiThread(() -> setSwappedFeeds(false));
                 }
             }
@@ -248,7 +269,6 @@ public class ChatSingleActivity extends AppCompatActivity {
         }
     }
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         for (int i = 0; i < permissions.length; i++) {
@@ -260,5 +280,13 @@ public class ChatSingleActivity extends AppCompatActivity {
         }
         manager.joinRoom(getApplicationContext(), rootEglBase);
 
+    }
+
+    @Override
+    public void onClick(View v) {
+        int viewId = v.getId();
+        if (viewId == R.id.local_view_render) {
+            setSwappedFeeds(!isSwappedFeeds);
+        }
     }
 }

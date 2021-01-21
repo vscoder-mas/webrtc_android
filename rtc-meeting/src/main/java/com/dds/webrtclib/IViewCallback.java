@@ -7,6 +7,7 @@ import org.webrtc.MediaStream;
  */
 
 public interface IViewCallback {
+    void onSetMirror4SurfaceViewRenderer(boolean mirror);
 
     void onSetLocalStream(MediaStream stream, String socketId);
 

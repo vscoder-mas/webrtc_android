@@ -35,7 +35,6 @@ import androidx.fragment.app.FragmentManager;
  * 2. 一对一语音通话
  */
 public class ChatSingleActivity extends AppCompatActivity implements View.OnClickListener {
-    private final String TAG = ChatSingleActivity.class.getSimpleName();
     private SurfaceViewRenderer local_view;
     private SurfaceViewRenderer remote_view;
     private ProxyVideoSink localRender;
@@ -166,6 +165,12 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
     private void startCall() {
         manager = WebRTCManager.getInstance();
         manager.setCallback(new IViewCallback() {
+            @Override
+            public void onSetMirror4SurfaceViewRenderer(boolean mirror) {
+                local_view.setMirror(mirror);
+                remote_view.setMirror(mirror);
+            }
+
             @Override
             public void onSetLocalStream(MediaStream stream, String socketId) {
                 if (stream.videoTracks.size() > 0) {

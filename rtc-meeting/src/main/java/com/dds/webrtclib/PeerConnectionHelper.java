@@ -2,6 +2,7 @@ package com.dds.webrtclib;
 
 
 import android.content.Context;
+import android.hardware.Camera;
 import android.media.AudioManager;
 import android.util.Log;
 
@@ -83,9 +84,9 @@ public class PeerConnectionHelper {
     private IWebSocketListener javaWebSocket;
     private Context _context;
     private EglBase _rootEglBase;
-
     private SurfaceTextureHelper surfaceTextureHelper;
     private final ExecutorService executor;
+    private int cameraId = Camera.CameraInfo.CAMERA_FACING_FRONT;
 
     public PeerConnectionHelper(IWebSocketListener webSocket, MyIceServer[] iceServers) {
         this.mapConnPeers = new HashMap<>();
@@ -313,6 +314,16 @@ public class PeerConnectionHelper {
         if (captureAndroid instanceof CameraVideoCapturer) {
             CameraVideoCapturer cameraVideoCapturer = (CameraVideoCapturer) captureAndroid;
             cameraVideoCapturer.switchCamera(null);
+            if (cameraId == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                cameraId = Camera.CameraInfo.CAMERA_FACING_BACK;
+            } else {
+                cameraId = Camera.CameraInfo.CAMERA_FACING_FRONT;
+            }
+
+            boolean mirror = (cameraId == Camera.CameraInfo.CAMERA_FACING_FRONT);
+            if (viewCallback != null) {
+                viewCallback.onSetMirror4SurfaceViewRenderer(mirror);
+            }
         } else {
             Log.d(TAG, "Will not switch camera, video caputurer is not a camera");
         }
@@ -396,13 +407,16 @@ public class PeerConnectionHelper {
 
     private VideoCapturer createCameraCapture(CameraEnumerator enumerator) {
         final String[] deviceNames = enumerator.getDeviceNames();
-
         // First, try to find front facing camera
         for (String deviceName : deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
                 VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
 
                 if (videoCapturer != null) {
+                    if (viewCallback != null) {
+                        cameraId = Camera.CameraInfo.CAMERA_FACING_FRONT;
+                        viewCallback.onSetMirror4SurfaceViewRenderer(true);
+                    }
                     return videoCapturer;
                 }
             }
@@ -414,6 +428,10 @@ public class PeerConnectionHelper {
                 VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
 
                 if (videoCapturer != null) {
+                    if (viewCallback != null) {
+                        cameraId = Camera.CameraInfo.CAMERA_FACING_BACK;
+                        viewCallback.onSetMirror4SurfaceViewRenderer(false);
+                    }
                     return videoCapturer;
                 }
             }

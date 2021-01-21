@@ -96,6 +96,11 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
     }
 
     @Override
+    public void onSetMirror4SurfaceViewRenderer(boolean mirror) {
+
+    }
+
+    @Override
     public void onSetLocalStream(MediaStream stream, String userId) {
         List<VideoTrack> videoTracks = stream.videoTracks;
         if (videoTracks.size() > 0) {

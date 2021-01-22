@@ -50,6 +50,9 @@ import java.util.regex.Pattern;
 
 public class PeerConnectionHelper {
     public final static String TAG = PeerConnectionHelper.class.getSimpleName();
+
+    enum Role {Caller, Receiver}
+
     public static final int VIDEO_RESOLUTION_WIDTH = 320;
     public static final int VIDEO_RESOLUTION_HEIGHT = 240;
     public static final int FPS = 30;
@@ -64,12 +67,10 @@ public class PeerConnectionHelper {
     public VideoCapturer captureAndroid;
     public VideoSource videoSource;
     public AudioSource audioSource;
-
     //保存所有房间内，除自己外的sessionId
     public ArrayList<String> lstSessionIds;
     //保存sessionId，对应的Peer连接对象
     public Map<String, Peer> mapConnPeers;
-
     public String _myId;
     public IViewCallback viewCallback;
 
@@ -77,8 +78,6 @@ public class PeerConnectionHelper {
     public boolean videoEnable;
     public int _mediaType;
     private AudioManager mAudioManager;
-
-    enum Role {Caller, Receiver}
 
     private Role _role;
     private IWebSocketListener javaWebSocket;

@@ -64,13 +64,13 @@ public class JavaWebSocket implements IWebSocketListener {
                 @Override
                 public void onMessage(String message) {
                     isOpen = true;
-                    Log.d(TAG, message);
+                    Log.d(TAG, "- onMessage:" + message);
                     handleMessage(message);
                 }
 
                 @Override
                 public void onClose(int code, String reason, boolean remote) {
-                    Log.e(TAG, "onClose:" + reason);
+                    Log.d(TAG, "- onClose:" + reason);
                     if (signalingEventsListener != null) {
                         signalingEventsListener.onWebSocketOpenFailed(reason);
                     }
@@ -78,7 +78,7 @@ public class JavaWebSocket implements IWebSocketListener {
 
                 @Override
                 public void onError(Exception ex) {
-                    Log.e(TAG, ex.toString());
+                    Log.e(TAG, "- onError:" + ex.toString());
                     if (signalingEventsListener != null) {
                         signalingEventsListener.onWebSocketOpenFailed(ex.toString());
                     }
@@ -121,9 +121,7 @@ public class JavaWebSocket implements IWebSocketListener {
         if (mWebSocketClient != null) {
             mWebSocketClient.close();
         }
-
     }
-
 
     //============================需要发送的=====================================
     @Override
@@ -135,7 +133,7 @@ public class JavaWebSocket implements IWebSocketListener {
         map.put("data", childMap);
         JSONObject object = new JSONObject(map);
         final String jsonString = object.toString();
-        Log.d(TAG, "send-->" + jsonString);
+        Log.d(TAG, "- joinRoom send-->" + jsonString);
         mWebSocketClient.send(jsonString);
     }
 
@@ -151,7 +149,7 @@ public class JavaWebSocket implements IWebSocketListener {
         map.put("data", childMap2);
         JSONObject object = new JSONObject(map);
         String jsonString = object.toString();
-        Log.d(TAG, "send-->" + jsonString);
+        Log.d(TAG, "- sendAnswer send-->" + jsonString);
         mWebSocketClient.send(jsonString);
     }
 
@@ -171,9 +169,8 @@ public class JavaWebSocket implements IWebSocketListener {
 
         JSONObject object = new JSONObject(map);
         String jsonString = object.toString();
-        Log.d(TAG, "send-->" + jsonString);
+        Log.d(TAG, "- sendOffer send-->" + jsonString);
         mWebSocketClient.send(jsonString);
-
     }
 
     public void sendIceCandidate(String socketId, IceCandidate iceCandidate) {
@@ -187,7 +184,7 @@ public class JavaWebSocket implements IWebSocketListener {
         map.put("data", childMap);
         JSONObject object = new JSONObject(map);
         String jsonString = object.toString();
-        Log.d(TAG, "send-->" + jsonString);
+        Log.d(TAG, "- sendIceCandidate send-->" + jsonString);
         mWebSocketClient.send(jsonString);
     }
     //============================需要发送的=====================================
@@ -231,7 +228,6 @@ public class JavaWebSocket implements IWebSocketListener {
             String myId = (String) data.get("you");
             signalingEventsListener.onJoinToRoom(connections, myId);
         }
-
     }
 
     // 自己已经在房间，有人进来
@@ -242,7 +238,6 @@ public class JavaWebSocket implements IWebSocketListener {
             socketId = (String) data.get("socketId");
             signalingEventsListener.onRemoteJoinToRoom(socketId);
         }
-
     }
 
     // 处理交换信息
@@ -258,8 +253,6 @@ public class JavaWebSocket implements IWebSocketListener {
             IceCandidate iceCandidate = new IceCandidate(sdpMid, label, candidate);
             signalingEventsListener.onRemoteIceCandidate(socketId, iceCandidate);
         }
-
-
     }
 
     // 有人离开了房间
@@ -270,7 +263,6 @@ public class JavaWebSocket implements IWebSocketListener {
             socketId = (String) data.get("socketId");
             signalingEventsListener.onRemoteOutRoom(socketId);
         }
-
     }
 
     // 处理Offer
@@ -283,7 +275,6 @@ public class JavaWebSocket implements IWebSocketListener {
             String sdp = (String) sdpDic.get("sdp");
             signalingEventsListener.onReceiveOffer(socketId, sdp);
         }
-
     }
 
     // 处理Answer
@@ -296,14 +287,12 @@ public class JavaWebSocket implements IWebSocketListener {
             String sdp = (String) sdpDic.get("sdp");
             signalingEventsListener.onReceiverAnswer(socketId, sdp);
         }
-
     }
     //============================需要接收的=====================================
 
 
     // 忽略证书
     public static class TrustManagerTest implements X509TrustManager {
-
         @SuppressLint("TrustAllX509TrustManager")
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
@@ -321,6 +310,5 @@ public class JavaWebSocket implements IWebSocketListener {
             return new X509Certificate[0];
         }
     }
-
-
 }
+

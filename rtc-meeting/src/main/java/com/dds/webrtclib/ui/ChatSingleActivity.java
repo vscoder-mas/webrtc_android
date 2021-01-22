@@ -35,10 +35,10 @@ import androidx.fragment.app.FragmentManager;
  * 2. 一对一语音通话
  */
 public class ChatSingleActivity extends AppCompatActivity implements View.OnClickListener {
-    private SurfaceViewRenderer local_view;
-    private SurfaceViewRenderer remote_view;
-    private ProxyVideoSink localRender;
-    private ProxyVideoSink remoteRender;
+    private SurfaceViewRenderer localViewRenderer;
+    private SurfaceViewRenderer remoteViewRenderer;
+    private ProxyVideoSink localProxySink;
+    private ProxyVideoSink remoteProxySink;
 
     private WebRTCManager manager;
     private boolean videoEnable;
@@ -50,7 +50,6 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
         intent.putExtra("videoEnable", videoEnable);
         activity.startActivity(intent);
     }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,21 +72,21 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
         replaceFragment(chatSingleFragment, videoEnable);
         rootEglBase = EglBase.create();
         if (videoEnable) {
-            local_view = findViewById(R.id.local_view_render);
-            remote_view = findViewById(R.id.remote_view_render);
+            localViewRenderer = findViewById(R.id.local_view_render);
+            remoteViewRenderer = findViewById(R.id.remote_view_render);
             // 本地图像初始化
-            local_view.init(rootEglBase.getEglBaseContext(), null);
-            local_view.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
-            local_view.setZOrderMediaOverlay(true);
-            local_view.setMirror(true);
-            localRender = new ProxyVideoSink();
+            localViewRenderer.init(rootEglBase.getEglBaseContext(), null);
+            localViewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
+            localViewRenderer.setZOrderMediaOverlay(true);
+            localViewRenderer.setMirror(true);
+            localProxySink = new ProxyVideoSink();
             //远端图像初始化
-            remote_view.init(rootEglBase.getEglBaseContext(), null);
-            remote_view.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_BALANCED);
-            remote_view.setMirror(true);
-            remoteRender = new ProxyVideoSink();
+            remoteViewRenderer.init(rootEglBase.getEglBaseContext(), null);
+            remoteViewRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_BALANCED);
+            remoteViewRenderer.setMirror(true);
+            remoteProxySink = new ProxyVideoSink();
             setSwappedFeeds(true);
-            local_view.setOnClickListener(this);
+            localViewRenderer.setOnClickListener(this);
         }
 
         startCall();
@@ -102,7 +101,7 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
     private void initListener() {
         if (videoEnable) {
             // 设置小视频可以移动
-            local_view.setOnTouchListener((view, motionEvent) -> {
+            localViewRenderer.setOnTouchListener((view, motionEvent) -> {
                 boolean res = false;
                 switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_DOWN:
@@ -116,7 +115,7 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
                     case MotionEvent.ACTION_MOVE:
                         int x = (int) motionEvent.getX();
                         int y = (int) motionEvent.getY();
-                        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) local_view.getLayoutParams();
+                        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) localViewRenderer.getLayoutParams();
                         lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, 0); // Clears the rule, as there is no removeRule until API 17.
                         lp.addRule(RelativeLayout.ALIGN_PARENT_END, 0);
                         lp.addRule(RelativeLayout.ALIGN_PARENT_TOP, 0);
@@ -158,8 +157,8 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
 
     private void setSwappedFeeds(boolean isSwappedFeeds) {
         this.isSwappedFeeds = isSwappedFeeds;
-        localRender.setTarget(isSwappedFeeds ? remote_view : local_view);
-        remoteRender.setTarget(isSwappedFeeds ? local_view : remote_view);
+        localProxySink.setTarget(isSwappedFeeds ? remoteViewRenderer : localViewRenderer);
+        remoteProxySink.setTarget(isSwappedFeeds ? localViewRenderer : remoteViewRenderer);
     }
 
     private void startCall() {
@@ -167,14 +166,14 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
         manager.setCallback(new IViewCallback() {
             @Override
             public void onSetMirror4SurfaceViewRenderer(boolean mirror) {
-                local_view.setMirror(mirror);
-                remote_view.setMirror(mirror);
+                localViewRenderer.setMirror(mirror);
+                remoteViewRenderer.setMirror(mirror);
             }
 
             @Override
             public void onSetLocalStream(MediaStream stream, String socketId) {
                 if (stream.videoTracks.size() > 0) {
-                    stream.videoTracks.get(0).addSink(localRender);
+                    stream.videoTracks.get(0).addSink(localProxySink);
                 }
 
                 if (videoEnable) {
@@ -185,7 +184,7 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
             @Override
             public void onAddRemoteStream(MediaStream stream, String socketId) {
                 if (stream.videoTracks.size() > 0) {
-                    stream.videoTracks.get(0).addSink(remoteRender);
+                    stream.videoTracks.get(0).addSink(remoteProxySink);
                 }
                 if (videoEnable) {
                     stream.videoTracks.get(0).setEnabled(true);
@@ -255,22 +254,22 @@ public class ChatSingleActivity extends AppCompatActivity implements View.OnClic
 
     private void disConnect() {
         manager.exitRoom();
-        if (localRender != null) {
-            localRender.setTarget(null);
-            localRender = null;
+        if (localProxySink != null) {
+            localProxySink.setTarget(null);
+            localProxySink = null;
         }
-        if (remoteRender != null) {
-            remoteRender.setTarget(null);
-            remoteRender = null;
+        if (remoteProxySink != null) {
+            remoteProxySink.setTarget(null);
+            remoteProxySink = null;
         }
 
-        if (local_view != null) {
-            local_view.release();
-            local_view = null;
+        if (localViewRenderer != null) {
+            localViewRenderer.release();
+            localViewRenderer = null;
         }
-        if (remote_view != null) {
-            remote_view.release();
-            remote_view = null;
+        if (remoteViewRenderer != null) {
+            remoteViewRenderer.release();
+            remoteViewRenderer = null;
         }
     }
 

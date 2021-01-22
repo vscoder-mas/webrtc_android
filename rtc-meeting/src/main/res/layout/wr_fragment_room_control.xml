@@ -52,7 +52,8 @@
         android:layout_alignParentEnd="true"
         android:drawableTop="@drawable/webrtc_switch_camera"
         android:drawablePadding="5dp"
-        android:gravity="center_horizontal" />
+        android:gravity="center_horizontal"
+        android:text="切换摄像头" />
     <!--挂断-->
     <TextView
         android:id="@+id/wr_switch_hang_up"
@@ -62,7 +63,5 @@
         android:layout_centerHorizontal="true"
         android:drawableTop="@drawable/webrtc_cancel"
         android:drawablePadding="5dp"
-        android:gravity="center_horizontal"
-
-        />
+        android:gravity="center_horizontal" />
 </RelativeLayout>

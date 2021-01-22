@@ -5,7 +5,6 @@ package com.dds.webrtclib.ws;
  * android_shuai@163.com
  */
 public interface IConnectEventListener {
-
     void onSuccess();
 
     void onFailed(String msg);

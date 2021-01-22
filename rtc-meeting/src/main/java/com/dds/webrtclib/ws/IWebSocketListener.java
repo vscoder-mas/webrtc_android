@@ -7,8 +7,6 @@ import org.webrtc.IceCandidate;
  * android_shuai@163.com
  */
 public interface IWebSocketListener {
-
-
     void connect(String wss);
 
     boolean isOpen();

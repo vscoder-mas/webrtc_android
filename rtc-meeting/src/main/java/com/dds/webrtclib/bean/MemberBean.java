@@ -10,7 +10,6 @@ public class MemberBean {
     private String name;
     private String avatar;
 
-
     public MemberBean(String id) {
         this.id = id;
     }
@@ -38,8 +37,6 @@ public class MemberBean {
     public void setAvatar(String avatar) {
         this.avatar = avatar;
     }
-
-
 
     @Override
     public boolean equals(Object obj) {

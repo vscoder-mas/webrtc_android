@@ -40,11 +40,11 @@ import androidx.fragment.app.FragmentManager;
  * 支持 9 路同時通信
  */
 public class ChatRoomActivity extends AppCompatActivity implements IViewCallback {
-    private FrameLayout wr_video_view;
+    private FrameLayout layoutVideoView;
     private WebRTCManager manager;
-    private Map<String, SurfaceViewRenderer> _videoViews = new HashMap<>();
-    private Map<String, ProxyVideoSink> _sinks = new HashMap<>();
-    private List<MemberBean> _infos = new ArrayList<>();
+    private Map<String, SurfaceViewRenderer> mapVideoViews = new HashMap<>();
+    private Map<String, ProxyVideoSink> mapProxySinks = new HashMap<>();
+    private List<MemberBean> lstMemBean = new ArrayList<>();
     private VideoTrack _localVideoTrack;
     private int mScreenWidth;
     private EglBase rootEglBase;
@@ -65,13 +65,14 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         setContentView(R.layout.wr_activity_chat_room);
         initView();
         initVar();
+
         ChatRoomFragment chatRoomFragment = new ChatRoomFragment();
         replaceFragment(chatRoomFragment);
         startCall();
     }
 
     private void initView() {
-        wr_video_view = findViewById(R.id.wr_video_view);
+        layoutVideoView = findViewById(R.id.wr_video_view);
     }
 
     private void initVar() {
@@ -80,9 +81,9 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         if (manager != null) {
             mScreenWidth = manager.getDefaultDisplay().getWidth();
         }
-        wr_video_view.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mScreenWidth));
-        rootEglBase = EglBase.create();
 
+        layoutVideoView.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mScreenWidth));
+        rootEglBase = EglBase.create();
     }
 
     private void startCall() {
@@ -92,7 +93,6 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         if (!PermissionUtil.isNeedRequestPermission(ChatRoomActivity.this)) {
             manager.joinRoom(getApplicationContext(), rootEglBase);
         }
-
     }
 
     @Override
@@ -106,6 +106,7 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         if (videoTracks.size() > 0) {
             _localVideoTrack = videoTracks.get(0);
         }
+
         runOnUiThread(() -> {
             addView(userId, stream);
         });
@@ -138,15 +139,15 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         if (stream.videoTracks.size() > 0) {
             stream.videoTracks.get(0).addSink(sink);
         }
-        _videoViews.put(id, renderer);
-        _sinks.put(id, sink);
-        _infos.add(new MemberBean(id));
-        wr_video_view.addView(renderer);
+        mapVideoViews.put(id, renderer);
+        mapProxySinks.put(id, sink);
+        lstMemBean.add(new MemberBean(id));
+        layoutVideoView.addView(renderer);
 
-        int size = _infos.size();
+        int size = lstMemBean.size();
         for (int i = 0; i < size; i++) {
-            MemberBean memberBean = _infos.get(i);
-            SurfaceViewRenderer renderer1 = _videoViews.get(memberBean.getId());
+            MemberBean memberBean = lstMemBean.get(i);
+            SurfaceViewRenderer renderer1 = mapVideoViews.get(memberBean.getId());
             if (renderer1 != null) {
                 FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -158,30 +159,27 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
             }
 
         }
-
-
     }
 
 
     private void removeView(String userId) {
-        ProxyVideoSink sink = _sinks.get(userId);
-        SurfaceViewRenderer renderer = _videoViews.get(userId);
+        ProxyVideoSink sink = mapProxySinks.get(userId);
+        SurfaceViewRenderer renderer = mapVideoViews.get(userId);
         if (sink != null) {
             sink.setTarget(null);
         }
         if (renderer != null) {
             renderer.release();
         }
-        _sinks.remove(userId);
-        _videoViews.remove(userId);
-        _infos.remove(new MemberBean(userId));
-        wr_video_view.removeView(renderer);
+        mapProxySinks.remove(userId);
+        mapVideoViews.remove(userId);
+        lstMemBean.remove(new MemberBean(userId));
+        layoutVideoView.removeView(renderer);
 
-
-        int size = _infos.size();
-        for (int i = 0; i < _infos.size(); i++) {
-            MemberBean memberBean = _infos.get(i);
-            SurfaceViewRenderer renderer1 = _videoViews.get(memberBean.getId());
+        int size = lstMemBean.size();
+        for (int i = 0; i < lstMemBean.size(); i++) {
+            MemberBean memberBean = lstMemBean.get(i);
+            SurfaceViewRenderer renderer1 = mapVideoViews.get(memberBean.getId());
             if (renderer1 != null) {
                 FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -191,9 +189,7 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
                 layoutParams.topMargin = getY(size, i);
                 renderer1.setLayoutParams(layoutParams);
             }
-
         }
-
     }
 
     private int getWidth(int size) {
@@ -283,7 +279,6 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
         manager.beginTransaction()
                 .replace(R.id.wr_container, fragment)
                 .commit();
-
     }
 
     // 切换摄像头
@@ -317,15 +312,15 @@ public class ChatRoomActivity extends AppCompatActivity implements IViewCallback
 
     private void exit() {
         manager.exitRoom();
-        for (SurfaceViewRenderer renderer : _videoViews.values()) {
+        for (SurfaceViewRenderer renderer : mapVideoViews.values()) {
             renderer.release();
         }
-        for (ProxyVideoSink sink : _sinks.values()) {
+        for (ProxyVideoSink sink : mapProxySinks.values()) {
             sink.setTarget(null);
         }
-        _videoViews.clear();
-        _sinks.clear();
-        _infos.clear();
+        mapVideoViews.clear();
+        mapProxySinks.clear();
+        lstMemBean.clear();
 
     }
 
